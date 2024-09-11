@@ -6,6 +6,8 @@ import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 
+# Check if Metal (GPU support) is available
+device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 
 # load the CIFAR-10 dataset
 transform = transforms.Compose(
@@ -48,6 +50,7 @@ class NeuralNetwork(nn.Module):
 net = NeuralNetwork()
 loss = nn.CrossEntropyLoss()
 optim = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+net.to(device)
 
 # train the neural network
 def train(data_loader, model, loss_fn, optimizer):
