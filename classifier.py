@@ -6,7 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 
-#device = torch.device('mps')
+device = torch.device('mps')
 
 # load the CIFAR-10 dataset
 transform = transforms.Compose(
@@ -38,7 +38,7 @@ class NeuralNetwork(nn.Module):
 
     # forward pass
     def forward(self, x):
-        #x.to(device)
+        x = x.to(device)
         x = x.view(-1, 3072)
         x = self.dropout(self.relu(self.fc1(x)))
         x = self.dropout(self.relu(self.fc2(x)))
@@ -50,7 +50,7 @@ class NeuralNetwork(nn.Module):
 net = NeuralNetwork()
 loss = nn.CrossEntropyLoss()
 optim = torch.optim.SGD(net.parameters(), lr=0.001, weight_decay=0.0001)
-#net.to(device)
+net.to(device)
 
 # train the neural network
 def train(data_loader, model, loss_fn, optimizer):
@@ -59,14 +59,18 @@ def train(data_loader, model, loss_fn, optimizer):
 
     for epoch in range(10):
         
+        batch_loss = 0
+
         for batch, (X, y) in enumerate(data_loader):
             
-            #X = X.to(device)
-            #y = y.to(device)
+            X = X.to(device)
+            y = y.to(device)
 
             # compute prediction and loss 
             y_pred = model(X)
             error = loss_fn(y_pred,y)
+
+            batch_loss += error
         
             # backpropagation
             error.backward()
@@ -76,33 +80,37 @@ def train(data_loader, model, loss_fn, optimizer):
         # show testing acuracy in each iteration of the training function
         train_accuracy = eval(trainloader, model, loss_fn)
         testing_accuracy = eval(testloader, model, loss_fn)
+        avg_batch_loss = batch_loss / len(data_loader)
+
         # print the loop, train loss, train acc %, test loss, test acc %
-        print("{:4d} | {:.6f} | {:.6f} | {:.6f}".format(epoch + 1, loss, train_accuracy, testing_accuracy))
+        print(f"{epoch + 1:<4}\t{avg_batch_loss:.4f}\t{100 * train_accuracy:.3f}\t{testing_accuracy[1]:3f}\t{100 * testing_accuracy[0]:.3f}")
          
-        
     # save the model after training is complete
     torch.save(model.state_dict(), 'model/model.pth')
 
-# test the neural network
+# evaluate neural network accuracy 
 def eval(data_loader, model, loss_fn):
     model.eval()
-    correct = 0
+    accuracy = 0
     test_loss = 0
     with torch.no_grad():
         for X, y in data_loader:
-            #X.to(device)
-            #y.to(device)
+            X = X.to(device)
+            y = y.to(device)
 
             pred_y = model(X)
             test_loss += loss_fn(pred_y, y).item()
-            correct += torch.sum(pred_y.argmax(1) == y).item()
+            accuracy += torch.sum(pred_y.argmax(1) == y).item()
     
-    test_loss /= len(data_loader)
+    avg_test_loss = test_loss / len(data_loader)
     accuracy /= len(data_loader.dataset)
 
-    return accuracy
+    return accuracy, avg_test_loss
 
 if __name__ == "__main__":
     # print the loop, train loss, train acc %, test loss, test acc %
-    print("Loop, ", "Train Loss, ", "Train Acc %, ", "Test Loss, ", "Test Acc%")
-    train(trainloader, net, loss, optim)
+    if sys.argv[1] == "train":
+        print(f"Loop,\tTrain Loss,\tTrain Acc%,\tTest Loss,\tTest Acc%")
+        train(trainloader, net, loss, optim)
+    else:
+        print("enter correct function name")
