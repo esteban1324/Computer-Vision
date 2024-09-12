@@ -6,7 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 
-device = torch.device('mps')
+#device = torch.device('mps')
 
 # load the CIFAR-10 dataset
 transform = transforms.Compose(
@@ -38,7 +38,7 @@ class NeuralNetwork(nn.Module):
 
     # forward pass
     def forward(self, x):
-        x.to(device)
+        #x.to(device)
         x = x.view(-1, 3072)
         x = self.dropout(self.relu(self.fc1(x)))
         x = self.dropout(self.relu(self.fc2(x)))
@@ -50,7 +50,7 @@ class NeuralNetwork(nn.Module):
 net = NeuralNetwork()
 loss = nn.CrossEntropyLoss()
 optim = torch.optim.SGD(net.parameters(), lr=0.001, weight_decay=0.0001)
-net.to(device)
+#net.to(device)
 
 # train the neural network
 def train(data_loader, model, loss_fn, optimizer):
@@ -61,8 +61,8 @@ def train(data_loader, model, loss_fn, optimizer):
         
         for batch, (X, y) in enumerate(data_loader):
             
-            X = X.to(device)
-            y = y.to(device)
+            #X = X.to(device)
+            #y = y.to(device)
 
             # compute prediction and loss 
             y_pred = model(X)
@@ -77,7 +77,7 @@ def train(data_loader, model, loss_fn, optimizer):
         train_accuracy = eval(trainloader, model, loss_fn)
         testing_accuracy = eval(testloader, model, loss_fn)
         # print the loop, train loss, train acc %, test loss, test acc %
-        print(epoch + 1, loss, train_accuracy, testing_accuracy)
+        print("{:4d} | {:.6f} | {:.6f} | {:.6f}".format(epoch + 1, loss, train_accuracy, testing_accuracy))
          
         
     # save the model after training is complete
@@ -90,12 +90,12 @@ def eval(data_loader, model, loss_fn):
     test_loss = 0
     with torch.no_grad():
         for X, y in data_loader:
-            X.to(device)
-            y.to(device)
+            #X.to(device)
+            #y.to(device)
 
             pred_y = model(X)
             test_loss += loss_fn(pred_y, y).item()
-            correct += torch.sum(pred_y == y).item()
+            correct += torch.sum(pred_y.argmax(1) == y).item()
     
     test_loss /= len(data_loader)
     accuracy /= len(data_loader.dataset)
@@ -103,8 +103,6 @@ def eval(data_loader, model, loss_fn):
     return accuracy
 
 if __name__ == "__main__":
-    
     # print the loop, train loss, train acc %, test loss, test acc %
     print("Loop, ", "Train Loss, ", "Train Acc %, ", "Test Loss, ", "Test Acc%")
     train(trainloader, net, loss, optim)
-    
