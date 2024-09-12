@@ -3,3 +3,4 @@ data/
 # ignore virtual environment folder
 .venv/
 
+model/

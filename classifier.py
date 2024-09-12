@@ -1,10 +1,11 @@
 import sys
+from PIL import Image
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-import numpy as np
+import os
 
 device = torch.device('mps')
 
@@ -83,7 +84,7 @@ def train(data_loader, model, loss_fn, optimizer):
         avg_batch_loss = batch_loss / len(data_loader)
 
         # print the loop, train loss, train acc %, test loss, test acc %
-        print(f"{epoch + 1:<4}\t{avg_batch_loss:.4f}\t{100 * train_accuracy:.3f}\t{testing_accuracy[1]:3f}\t{100 * testing_accuracy[0]:.3f}")
+        print(f"{epoch + 1:<4}\t{avg_batch_loss:.4f}\t{100 * train_accuracy[0]:.3f}\t{testing_accuracy[1]:3f}\t{100 * testing_accuracy[0]:.3f}")
          
     # save the model after training is complete
     torch.save(model.state_dict(), 'model/model.pth')
@@ -107,10 +108,26 @@ def eval(data_loader, model, loss_fn):
 
     return accuracy, avg_test_loss
 
+def test(image_path):
+    with open('model/model.pth', 'rb') as f:
+        net.load_state_dict(torch.load(f))
+
+    net.eval()
+    img = Image.open(image_path)
+    img_tensor = transforms.ToTensor()(img).unsqueeze(0).to(device)
+    output = torch.max(net(img_tensor), 1)
+
+    return output.item()
+
+
 if __name__ == "__main__":
     # print the loop, train loss, train acc %, test loss, test acc %
     if sys.argv[1] == "train":
         print(f"Loop,\tTrain Loss,\tTrain Acc%,\tTest Loss,\tTest Acc%")
         train(trainloader, net, loss, optim)
+    elif sys.argv[1] == "test" and sys.argv[2] == './images/png':
+        output = test('images/png')
+        print("prediction result: ", output)
     else:
-        print("enter correct function name")
+        print("please enter the correct function name")
+        
