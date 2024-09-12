@@ -6,8 +6,7 @@ import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 
-# Check if Metal (GPU support) is available
-device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+device = torch.device('mps')
 
 # load the CIFAR-10 dataset
 transform = transforms.Compose(
@@ -35,10 +34,11 @@ class NeuralNetwork(nn.Module):
         self.fc3 = nn.Linear(1024, 256)
         self.out = nn.Linear(256, 10)
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.25)
 
     # forward pass
     def forward(self, x):
+        x.to(device)
         x = x.view(-1, 3072)
         x = self.dropout(self.relu(self.fc1(x)))
         x = self.dropout(self.relu(self.fc2(x)))
@@ -49,7 +49,7 @@ class NeuralNetwork(nn.Module):
 # initialize the neural network and define the loss function and optimizer
 net = NeuralNetwork()
 loss = nn.CrossEntropyLoss()
-optim = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optim = torch.optim.SGD(net.parameters(), lr=0.001, weight_decay=0.0001)
 net.to(device)
 
 # train the neural network
@@ -60,7 +60,10 @@ def train(data_loader, model, loss_fn, optimizer):
     for epoch in range(10):
         
         for batch, (X, y) in enumerate(data_loader):
-        
+            
+            X = X.to(device)
+            y = y.to(device)
+
             # compute prediction and loss 
             y_pred = model(X)
             error = loss_fn(y_pred,y)
@@ -69,16 +72,12 @@ def train(data_loader, model, loss_fn, optimizer):
             error.backward()
             optimizer.step()
             optimizer.zero_grad()
-            
-            # print the accuracy
-            if batch % 100 == 0:
-                loss, current = error.item(), (batch + 1) * len(X)
-                print(f"loss: {loss:>7f} [{current:>5d}/{size:>5d}]")
-                     
+                         
         # show testing acuracy in each iteration of the training function
+        train_accuracy = eval(trainloader, model, loss_fn)
         testing_accuracy = eval(testloader, model, loss_fn)
         # print the loop, train loss, train acc %, test loss, test acc %
-        print(f"Loop: {epoch + 1}, Train loss: {loss:>7f}, Train Acc: {eval(trainloader, model, loss_fn):>7f}%, Test Acc: {testing_accuracy:>7f}%")
+        print(epoch + 1, loss, train_accuracy, testing_accuracy)
          
         
     # save the model after training is complete
@@ -88,19 +87,24 @@ def train(data_loader, model, loss_fn, optimizer):
 def eval(data_loader, model, loss_fn):
     model.eval()
     correct = 0
-    total = 0
+    test_loss = 0
     with torch.no_grad():
         for X, y in data_loader:
-            y_pred = model(X)
-            _, predicted = torch.max(y_pred, 1)
-            total += y.size(0)
-            correct += (predicted == y).sum().item()
-            
-    accuracy = 100 * correct / total
+            X.to(device)
+            y.to(device)
+
+            pred_y = model(X)
+            test_loss += loss_fn(pred_y, y).item()
+            correct += torch.sum(pred_y == y).item()
+    
+    test_loss /= len(data_loader)
+    accuracy /= len(data_loader.dataset)
+
     return accuracy
 
 if __name__ == "__main__":
-    if sys.argv[1] == "train":
-        train(trainloader, net, loss, optim)
-    else:
-        print("Invalid command. Please use 'python classifier.py train' to train the model.")
+    
+    # print the loop, train loss, train acc %, test loss, test acc %
+    print("Loop, ", "Train Loss, ", "Train Acc %, ", "Test Loss, ", "Test Acc%")
+    train(trainloader, net, loss, optim)
+    
