@@ -9,6 +9,8 @@ import os
 
 device = torch.device('mps')
 
+# generate make dir for the model to save train weights and biases 
+os.makedirs('model', exist_ok=True)
 # load the CIFAR-10 dataset
 transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -24,6 +26,9 @@ testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                         download=False, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=4,
                                           shuffle=False, num_workers=2)
+
+classes = ['airplane', 'automobile', 'bird', 'cat', 'deer',
+           'dog', 'frog', 'horse', 'ship', 'truck']
 
 
 # build the neural network without using nn.Conv2d and MaxPool2d
@@ -50,20 +55,17 @@ class NeuralNetwork(nn.Module):
 # initialize the neural network and define the loss function and optimizer
 net = NeuralNetwork()
 loss = nn.CrossEntropyLoss()
-optim = torch.optim.SGD(net.parameters(), lr=0.001, weight_decay=0.0001)
+optim = optim.SGD(net.parameters(), lr=0.001, weight_decay=0.0001)
 net.to(device)
 
 # train the neural network
 def train(data_loader, model, loss_fn, optimizer):
-    size = len(data_loader.dataset)
     model.train()
 
     for epoch in range(10):
-        
         batch_loss = 0
 
-        for batch, (X, y) in enumerate(data_loader):
-            
+        for (X, y) in enumerate(data_loader):      
             X = X.to(device)
             y = y.to(device)
 
@@ -108,16 +110,18 @@ def eval(data_loader, model, loss_fn):
 
     return accuracy, avg_test_loss
 
+
 def test(image_path):
     with open('model/model.pth', 'rb') as f:
-        net.load_state_dict(torch.load(f))
+        net.load_state_dict(torch.load(f, weights_only=True))
 
     net.eval()
     img = Image.open(image_path)
-    img_tensor = transforms.ToTensor()(img).unsqueeze(0).to(device)
+    img_resize = img.resize((32, 32))
+    img_tensor = transforms.ToTensor()(img_resize).unsqueeze(0).to(device)
     output = torch.max(net(img_tensor), 1)
 
-    return output.item()
+    return output
 
 
 if __name__ == "__main__":
@@ -125,9 +129,9 @@ if __name__ == "__main__":
     if sys.argv[1] == "train":
         print(f"Loop,\tTrain Loss,\tTrain Acc%,\tTest Loss,\tTest Acc%")
         train(trainloader, net, loss, optim)
-    elif sys.argv[1] == "test" and sys.argv[2] == './images/png':
-        output = test('images/png')
-        print("prediction result: ", output)
+    elif sys.argv[1] == "test":
+        output = test(sys.argv[2])
+        print("prediction result: ", classes[output.indices.item()])
     else:
         print("please enter the correct function name")
         
