@@ -129,7 +129,7 @@ if __name__ == "__main__":
     if sys.argv[1] == "train":
         print(f"Loop,\tTrain Loss,\tTrain Acc%,\tTest Loss,\tTest Acc%")
         train(trainloader, net, loss, optim)
-    elif sys.argv[1] == "test":
+    elif sys.argv[1] == "test" or sys.argv[1] == "predict":
         output = test(sys.argv[2])
         print("prediction result: ", classes[output.indices.item()])
     else:
