@@ -44,6 +44,7 @@ class CNN(nn.Module):
         self.bn2 = nn.BatchNorm2d(64)
         self.conv3 = nn.Conv(64, 128, 3, stride=1, padding=1)
         self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv(128, 256, stride=1, padding=1)
         self.pool = nn.MaxPool2d(2, stride=2)
         self.fc1 = nn.Linear(128 * 2 * 2, 128)
         self.fc2 = nn.Linear(128, 64)
