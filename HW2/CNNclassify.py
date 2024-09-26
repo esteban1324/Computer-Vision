@@ -38,16 +38,29 @@ class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
         '''In the first CONV layer, the filter size should be 5*5, the stride should be 1, and the total number of filters should be 32.'''
+        self.relu = nn.ReLU()
         self.conv1 = nn.Conv(3, 32, 5, stride=1, padding=2)
-        # lets have 3 layers of convolutions with relu activation functions
-        # in between the convolutions, we will have maxpooling layers
-        # batch normalization is also added
-        # after the 5th conv, 2 fully connected layers, and the output layer
-        #self.conv2 = nn.Conv()
-
+        self.conv2 = nn.Conv(32, 64, 3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv(64, 128, 3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.pool = nn.MaxPool2d(2, stride=2)
+        self.fc1 = nn.Linear(128 * 2 * 2, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.out = nn.Linear(64, 10)
+        
+    
     # forward pass
     def forward(self, x):
-        
+        x = x.to(device)
+       
+
+
+
+
+
+
+
         return x
 
 net = CNN()
