@@ -80,7 +80,7 @@ def train(epochs, data_loader, model, loss_fn, optimizer):
 
         for (X, target) in enumerate(data_loader):      
             X = X.to(device)
-            y = target.to(device)
+            target = target.to(device)
 
             # compute prediction and loss 
             y_pred = model(X)
