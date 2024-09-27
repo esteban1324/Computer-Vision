@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # print the loop, train loss, train acc %, test loss, test acc %
     if sys.argv[1] == "train":
         print(f"{'Loop':<8}{'Train Loss':<15}{'Train Acc %':<15}{'Test Loss':<15}{'Test Acc %':<15}")
-        train(30, trainloader, net, loss, optim)
+        train(10, trainloader, net, loss, optim)
     elif sys.argv[1] == "test" or sys.argv[1] == "predict":
         output = test(sys.argv[2])
         print("prediction result: ", classes[output.indices.item()])
