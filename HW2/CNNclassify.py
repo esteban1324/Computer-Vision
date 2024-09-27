@@ -8,7 +8,12 @@ import torchvision.transforms as transforms
 import os
 
 
-device = torch.device('mps')
+# move to device if available
+device = torch.device(
+    'cuda' if torch.cuda.is_available() else (
+        'mps' if torch.backends.mps.is_available() else 'cpu'
+    )
+)
 
 # generate make dir for the model to save train weights and biases 
 os.makedirs('model', exist_ok=True)
@@ -39,13 +44,14 @@ class CNN(nn.Module):
         super(CNN, self).__init__()
         '''In the first CONV layer, the filter size should be 5*5, the stride should be 1, and the total number of filters should be 32.'''
         self.relu = nn.ReLU()
-        self.conv1 = nn.Conv(3, 32, 5, stride=1, padding=2)
-        self.conv2 = nn.Conv(32, 64, 3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 32, 5, stride=1, padding=2)
+        self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv(64, 128, 3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, 3, stride=1, padding=1)
         self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv(128, 256, 3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(128, 256, 3, stride=1, padding=1)
         self.pool = nn.MaxPool2d(2, stride=2)
+        self.dropout = nn.Dropout(.25)
         self.fc1 = nn.Linear(256 * 2 * 2, 128)
         self.fc2 = nn.Linear(128, 64)
         self.out = nn.Linear(64, 10)
@@ -60,8 +66,8 @@ class CNN(nn.Module):
         x = self.pool(self.relu(self.conv4(x)))
         x = x.view(-1, 256 * 2 * 2)
         #x = x.view(x.size(0), -1)
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
+        x = self.dropout(self.relu(self.fc1(x)))
+        x = self.dropout(self.relu(self.fc2(x)))
         x = self.out(x)
         return x
 
