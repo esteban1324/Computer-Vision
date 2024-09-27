@@ -84,7 +84,7 @@ def train(epochs, data_loader, model, loss_fn, optimizer):
     for epoch in range(epochs):
         batch_loss = 0
 
-        for (X, target) in enumerate(data_loader):      
+        for X, target in data_loader:      
             X = X.to(device)
             target = target.to(device)
 
@@ -146,7 +146,7 @@ def test(image_path):
 if __name__ == "__main__":
     # print the loop, train loss, train acc %, test loss, test acc %
     if sys.argv[1] == "train":
-        print(f"{'loop':<8f}{'Train Loss %':<15f}{'Train Acc%':<15f}{'Test Loss':<15f}{'Test Acc %':<15f}")
+        print(f"{'Loop':<8}{'Train Loss':<15}{'Train Acc %':<15}{'Test Loss':<15}{'Test Acc %':<15}")
         train(30, trainloader, net, loss, optim)
     elif sys.argv[1] == "test" or sys.argv[1] == "predict":
         output = test(sys.argv[2])
