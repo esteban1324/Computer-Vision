@@ -105,7 +105,7 @@ def train(epochs, data_loader, model, loss_fn, optimizer):
         avg_batch_loss = batch_loss / len(data_loader)
 
         # print the loop, train loss, train acc %, test loss, test acc %
-        print(f"{epoch + 1:<4}\t{avg_batch_loss:.4f}\t{100 * train_accuracy[0]:.3f}\t{testing_accuracy[1]:3f}\t{100 * testing_accuracy[0]:.3f}")
+        print(f"{epoch + 1}{avg_batch_loss:<8}{100 * train_accuracy[0]:<15}{testing_accuracy[1]:<15}{100 * testing_accuracy[0]:<15}")
          
     # save the model after training is complete
     torch.save(model.state_dict(), 'model/model.pth')
@@ -146,7 +146,7 @@ def test(image_path):
 if __name__ == "__main__":
     # print the loop, train loss, train acc %, test loss, test acc %
     if sys.argv[1] == "train":
-        print(f"Loop,\tTrain Loss,\tTrain Acc%,\tTest Loss,\tTest Acc%")
+        print(f"{'loop':<8f}{'Train Loss %':<15f}{'Train Acc%':<15f}{'Test Loss':<15f}{'Test Acc %':<15f}")
         train(30, trainloader, net, loss, optim)
     elif sys.argv[1] == "test" or sys.argv[1] == "predict":
         output = test(sys.argv[2])
