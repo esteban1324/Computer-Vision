@@ -6,6 +6,8 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 # move to device if available
@@ -42,7 +44,6 @@ classes = ['airplane', 'automobile', 'bird', 'cat', 'deer',
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
-        '''In the first CONV layer, the filter size should be 5*5, the stride should be 1, and the total number of filters should be 32.'''
         self.relu = nn.ReLU()
         self.conv1 = nn.Conv2d(3, 32, 5, stride=1, padding=2)
         self.conv2 = nn.Conv2d(32, 64, 3, stride=1, padding=1)
@@ -65,7 +66,6 @@ class CNN(nn.Module):
         x = self.pool(self.relu(self.bn3(self.conv3(x))))
         x = self.pool(self.relu(self.conv4(x)))
         x = x.view(-1, 256 * 2 * 2)
-        #x = x.view(x.size(0), -1)
         x = self.dropout(self.relu(self.fc1(x)))
         x = self.dropout(self.relu(self.fc2(x)))
         x = self.out(x)
@@ -105,8 +105,7 @@ def train(epochs, data_loader, model, loss_fn, optimizer):
         avg_batch_loss = batch_loss / len(data_loader)
 
         # print the loop, train loss, train acc %, test loss, test acc %
-        print(f"{epoch + 1}{avg_batch_loss:<8}{100 * train_accuracy[0]:<15}{testing_accuracy[1]:<15}{100 * testing_accuracy[0]:<15}")
-         
+        print(f"{epoch+1:<8}{avg_batch_loss:<15.4f}{100 * train_accuracy[0]:<15.4f}{testing_accuracy[1]:<15.4f}{100 * testing_accuracy[0]:<15.4f}")
     # save the model after training is complete
     torch.save(model.state_dict(), 'model/model.pth')
 
@@ -142,12 +141,48 @@ def test(image_path):
 
     return output
 
+conv_output = []
+def first_layer_out(module, input, output):
+    conv_output.append(output)
+
+def visualize_layer1(net=net):
+    model = net
+    model.eval()
+
+    data_iter = iter(trainloader)
+    image , _ = next(data_iter)
+
+    
+    model.conv1.register_forward_hook(first_layer_out)
+
+    with torch.no_grad():
+        model(image)
+
+    conv_output_np = conv_output[0].cpu().numpy()
+    n_filters = conv_output_np.shape[1]
+    n_rows = 8
+    n_cols = 4
+
+    
+    plt.figure(figsize=(14,8))
+    plt.title("first output of conv1")
+    for i in range(n_filters):
+        plt.subplot(n_rows, n_cols, i+1)
+        plt.imshow(conv_output_np[0, i], cmap='gray')
+        plt.axis('off')
+    
+    plt.savefig('CONV_rslt.png')
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
     # print the loop, train loss, train acc %, test loss, test acc %
-    if sys.argv[1] == "train":
+    if len(sys.argv) < 2:
+        visualize_layer1(net)
+
+    elif sys.argv[1] == "train":
         print(f"{'Loop':<8}{'Train Loss':<15}{'Train Acc %':<15}{'Test Loss':<15}{'Test Acc %':<15}")
-        train(10, trainloader, net, loss, optim)
+        train(15, trainloader, net, loss, optim)
     elif sys.argv[1] == "test" or sys.argv[1] == "predict":
         output = test(sys.argv[2])
         print("prediction result: ", classes[output.indices.item()])
