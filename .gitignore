@@ -1,6 +1,7 @@
 # ignore data folder 
 data/
 # ignore virtual environment folder
-.venv/
-
-model/
+**/.venv/
+**/model/
+**/cifar10_data
+**/__pycache__
