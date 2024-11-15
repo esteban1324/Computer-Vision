@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torchmetrics.image.inception import InceptionScore
+from torchmetrics.image.fid import FrechetInceptionDistance
 import matplotlib.pyplot as plt
 import torch.utils
 from torch.autograd import grad
@@ -14,6 +16,9 @@ import os
 import numpy as np
 #from InceptionScore import get_inception_score
 torch.autograd.set_detect_anomaly(True)
+inception = InceptionScore(splits=10, normalize=True).cuda()
+fid = FrechetInceptionDistance(feature=2048, normalize=True).cuda()
+
 
 device = torch.device(
     'cuda' if torch.cuda.is_available() else (
@@ -167,7 +172,7 @@ def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_opt
         for i, (real_data, _) in enumerate(data_loader):
             real_data = real_data.to(device)
             batch_size = real_data.size(0)
-            print(f"{i + 1}/{len(data_loader)}")
+            print(f"epoch round: {epoch}, batch progress: {i + 1}/{len(data_loader)}")
             for _ in range(n_critic):
                 noise = torch.randn(batch_size, 128).to(device)
                 fake_data = generator(noise)
@@ -194,19 +199,27 @@ def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_opt
             gen_loss.backward()
             gen_optimizer.step()
 
-        print(f"Epoch [{epoch+1}/{epochs}]  Discriminator Loss: {disc_loss.item():.4f}  Generator Loss: {gen_loss.item():.4f}")
-
+        
         print(f"Epoch [{epoch+1}/{epochs}]  Discriminator Loss: {disc_loss.item():.4f}  Generator Loss: {gen_loss.item():.4f}")
         grid_size = int(np.ceil(np.sqrt(batch_size)))
         for j in range(batch_size):
             plt.subplot(grid_size, grid_size, j + 1)
             plt.imshow((fake_data[j].permute(1, 2, 0).cpu().detach().numpy() * 0.5 + 0.5).clip(0, 1))
             plt.axis('off')
-        plt.savefig(f"epoch{epoch+1}.png")
+        
+        img = f"epoch{epoch+1}.png"
+        plt.savefig(img)
+        inception.update(fake_data)
+        mean_score, std_score = inception.compute()
+        print(f"Inception Score at epoch {epoch}: Inception Score = {mean_score:.2f}, {std_score:.2f}")
+
+        fid.update(real_data, real=True)
+        fid.update(fake_data, real=False)
+        fid_score = fid.compute()
+        print(f"Epoch {epoch + 1}: Inception Score = {fid_score:.4f}")
+
         plt.close()
 
-    #inception_score_mean, inception_score_std = get_inception_score(image_list)
-    #print("mean inception score: "+str(inception_score_mean))
 
 
     torch.save(generator.state_dict(), 'generator.pth')
@@ -214,8 +227,8 @@ def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_opt
 
 if __name__ == "__main__":
     if sys.argv[1] == "train":
-        print("training GAN")
-        train(10, trainloader, generator, discriminator, gen_optimizer, disc_optimizer)
+        print("Training GAN")
+        train(50000, trainloader, generator, discriminator, gen_optimizer, disc_optimizer)
     #elif sys.argv[1] == "test" or sys.argv[1] == "predict":
         #output = test(sys.argv[2])
         #print("prediction result: ", classes[output.indices.item()])
