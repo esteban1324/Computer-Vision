@@ -216,7 +216,7 @@ def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_opt
         fid.update(real_data, real=True)
         fid.update(fake_data, real=False)
         fid_score = fid.compute()
-        print(f"Epoch {epoch + 1}: Inception Score = {fid_score:.4f}")
+        print(f"Epoch {epoch + 1}: FID Score = {fid_score:.4f}")
 
         plt.close()
 
