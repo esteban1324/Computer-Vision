@@ -167,7 +167,8 @@ def gradient_penalty(discriminator, real_data, fake_data):
 
 # train the GAN model 
 def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_optimizer):
-    len(data_loader)
+    inception_scores = []
+    fids = []
     for epoch in range(epochs):
         for i, (real_data, _) in enumerate(data_loader):
             real_data = real_data.to(device)
@@ -212,25 +213,23 @@ def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_opt
         inception.update(fake_data)
         mean_score, std_score = inception.compute()
         print(f"Inception Score at epoch {epoch}: Inception Score = {mean_score:.2f}, {std_score:.2f}")
+        inception_scores.append((mean_score, std_score))
+        
 
         fid.update(real_data, real=True)
         fid.update(fake_data, real=False)
         fid_score = fid.compute()
         print(f"Epoch {epoch + 1}: FID Score = {fid_score:.4f}")
-
+        fids.append(fid_score)
         plt.close()
-
-
-
+    print("inception scores: ", inception_scores)
+    print("fid scores: ", fids)
     torch.save(generator.state_dict(), 'generator.pth')
     torch.save(discriminator.state_dict(), 'discriminator.pth')
 
 if __name__ == "__main__":
     if sys.argv[1] == "train":
         print("Training GAN")
-        train(50000, trainloader, generator, discriminator, gen_optimizer, disc_optimizer)
-    #elif sys.argv[1] == "test" or sys.argv[1] == "predict":
-        #output = test(sys.argv[2])
-        #print("prediction result: ", classes[output.indices.item()])
+        train(10, trainloader, generator, discriminator, gen_optimizer, disc_optimizer)
     else:
         print("please enter the correct function name")
