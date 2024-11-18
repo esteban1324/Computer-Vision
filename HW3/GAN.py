@@ -31,9 +31,9 @@ transform = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 ])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=False, transform=transform)
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=128,shuffle=True, num_workers=2)
-testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=False, transform=transform)
+testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=128, shuffle=False, num_workers=2)
 
 class ResBlockUp(nn.Module):
@@ -134,6 +134,8 @@ class Discriminator(nn.Module):
         return x
 
 lr = 2e-4
+decay_factor = 0.5
+step_size = 3
 beta1 = 0.0
 beta2 = 0.9
 n_critic = 5  
@@ -169,59 +171,84 @@ def gradient_penalty(discriminator, real_data, fake_data):
 def train(epochs, data_loader, generator, discriminator, gen_optimizer, disc_optimizer):
     inception_scores = []
     fids = []
-    for epoch in range(epochs):
-        for i, (real_data, _) in enumerate(data_loader):
-            real_data = real_data.to(device)
-            batch_size = real_data.size(0)
-            print(f"epoch round: {epoch}, batch progress: {i + 1}/{len(data_loader)}")
-            for _ in range(n_critic):
+    
+    def lr_decayf(step_size, data_loader_length):
+        return 1 - (step_size / data_loader_length)
+    
+    
+    sch_G = optim.lr_scheduler.LambdaLR(gen_optimizer, lr_lambda=lambda step: lr_decayf(step, len(data_loader)))
+    sch_D = optim.lr_scheduler.LambdaLR(gen_optimizer, lr_lambda=lambda step: lr_decayf(step, len(data_loader)))
+    
+    
+    with open('scores.txt', 'w') as f:
+        
+        f.write("Epoch\tLearning Rate\tDisc Loss\tGen Loss\tInception Mean\tInception Std\tFID Score\n")
+        
+        for epoch in range(epochs):
+            for i, (real_data, _) in enumerate(data_loader):
+                real_data = real_data.to(device)
+                batch_size = real_data.size(0)
+                print(f"epoch round: {epoch + 1}, batch progress: {i + 1}/{len(data_loader)}")
+                for _ in range(n_critic):
+                    noise = torch.randn(batch_size, 128).to(device)
+                    fake_data = generator(noise)
+
+                    # discriminator loss: D(real) - D(fake)
+                    disc_real = discriminator(real_data).mean()
+                    disc_fake = discriminator(fake_data.clone().detach()).mean()
+                    gp = gradient_penalty(discriminator, real_data, fake_data)
+                    disc_loss = disc_fake - disc_real + gp
+
+                    # backprop and optimization 
+                    disc_optimizer.zero_grad()
+                    disc_loss.backward()
+                    disc_optimizer.step()
+                
+                
+                # train generator 
                 noise = torch.randn(batch_size, 128).to(device)
                 fake_data = generator(noise)
+                gen_loss = - discriminator(fake_data).mean()
 
-                # discriminator loss: D(real) - D(fake)
-                disc_real = discriminator(real_data).mean()
-                disc_fake = discriminator(fake_data.clone().detach()).mean()
-                gp = gradient_penalty(discriminator, real_data, fake_data)
-                disc_loss = disc_fake - disc_real + gp
+                # backprop and optimization
+                gen_optimizer.zero_grad()
+                gen_loss.backward()
+                gen_optimizer.step()
+                
+                # Learning rate decay
+                sch_D.step()
+                sch_G.step()
+                
+            gen_lr = gen_optimizer.param_groups[0]['lr']
+            dis_lr = gen_optimizer.param_groups[0]['lr']
+            print("dis lr", gen_lr)
+            print("gen lr", dis_lr)
 
-                # backprop and optimization 
-                disc_optimizer.zero_grad()
-                disc_loss.backward()
-                disc_optimizer.step()
+            
+            print(f"Epoch [{epoch+1}/{epochs}]  Discriminator Loss: {disc_loss.item():.4f}  Generator Loss: {gen_loss.item():.4f}")
+            grid_size = int(np.ceil(np.sqrt(batch_size)))
+            for j in range(batch_size):
+                plt.subplot(grid_size, grid_size, j + 1)
+                plt.imshow((fake_data[j].permute(1, 2, 0).cpu().detach().numpy() * 0.5 + 0.5).clip(0, 1))
+                plt.axis('off')
+            
+            img = f"epoch{epoch+1}.png"
+            plt.savefig(img)
+            inception.update(fake_data)
+            mean_score, std_score = inception.compute()
+            print(f"Inception Score at epoch {epoch}: Inception Score = {mean_score:.2f}, {std_score:.2f}")
+            inception_scores.append((mean_score, std_score))
             
             
-            # train generator 
-            noise = torch.randn(batch_size, 128).to(device)
-            fake_data = generator(noise)
-            gen_loss = - discriminator(fake_data).mean()
+            fid.update(real_data, real=True)
+            fid.update(fake_data, real=False)
+            fid_score = fid.compute()
+            print(f"Epoch {epoch + 1}: FID Score = {fid_score:.4f}")
+            fids.append(fid_score)
+            plt.close()
+            f.write(f"{epoch + 1}\t{gen_lr:.6f}\t{disc_loss.item():.4f}\t{gen_loss.item():.4f}\t{mean_score:.2f}\t{std_score:.2f}\t{fid_score:.4f}\n")
 
-            # backprop and optimization
-            gen_optimizer.zero_grad()
-            gen_loss.backward()
-            gen_optimizer.step()
-
-        
-        print(f"Epoch [{epoch+1}/{epochs}]  Discriminator Loss: {disc_loss.item():.4f}  Generator Loss: {gen_loss.item():.4f}")
-        grid_size = int(np.ceil(np.sqrt(batch_size)))
-        for j in range(batch_size):
-            plt.subplot(grid_size, grid_size, j + 1)
-            plt.imshow((fake_data[j].permute(1, 2, 0).cpu().detach().numpy() * 0.5 + 0.5).clip(0, 1))
-            plt.axis('off')
-        
-        img = f"epoch{epoch+1}.png"
-        plt.savefig(img)
-        inception.update(fake_data)
-        mean_score, std_score = inception.compute()
-        print(f"Inception Score at epoch {epoch}: Inception Score = {mean_score:.2f}, {std_score:.2f}")
-        inception_scores.append((mean_score, std_score))
-        
-
-        fid.update(real_data, real=True)
-        fid.update(fake_data, real=False)
-        fid_score = fid.compute()
-        print(f"Epoch {epoch + 1}: FID Score = {fid_score:.4f}")
-        fids.append(fid_score)
-        plt.close()
+    
     print("inception scores: ", inception_scores)
     print("fid scores: ", fids)
     torch.save(generator.state_dict(), 'generator.pth')
